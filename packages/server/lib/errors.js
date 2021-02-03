@@ -496,6 +496,7 @@ const getMsgByType = function (type, arg1 = {}, arg2, arg3) {
         Error writing to: ${chalk.blue(filePath)}
 
         ${chalk.yellow(err)}`
+
     case 'NO_SPECS_FOUND':
       // no glob provided, searched all specs
       if (!arg2) {
@@ -512,7 +513,11 @@ const getMsgByType = function (type, arg1 = {}, arg2, arg3) {
 
         We searched for any files matching this glob pattern:
 
-        ${chalk.blue(arg2)}`
+        ${chalk.blue(arg2)}
+
+        Relative to the project root folder:
+
+        ${chalk.blue(arg1)}`
 
     case 'RENDERER_CRASHED':
       return stripIndent`\

@@ -6,6 +6,8 @@ import _ from 'lodash'
 import os from 'os'
 import path from 'path'
 import extension from '@packages/extension'
+import mime from 'mime'
+
 import appData from '../util/app_data'
 import fs from '../util/fs'
 import { CdpAutomation } from './cdp_automation'
@@ -38,6 +40,8 @@ type ChromePreferences = {
 const pathToExtension = extension.getPathToExtension()
 const pathToTheme = extension.getPathToTheme()
 
+// Common Chrome Flags for Automation
+// https://github.com/GoogleChrome/chrome-launcher/blob/master/docs/chrome-flags-for-tools.md
 const DEFAULT_ARGS = [
   '--test-type',
   '--ignore-certificate-errors',
@@ -49,7 +53,6 @@ const DEFAULT_ARGS = [
   '--enable-fixed-layout',
   '--disable-popup-blocking',
   '--disable-password-generation',
-  '--disable-save-password-bubble',
   '--disable-single-click-autofill',
   '--disable-prompt-on-repos',
   '--disable-background-timer-throttling',
@@ -57,7 +60,6 @@ const DEFAULT_ARGS = [
   '--disable-renderer-throttling',
   '--disable-backgrounding-occluded-windows',
   '--disable-restore-session-state',
-  '--disable-translate',
   '--disable-new-profile-management',
   '--disable-new-avatar-menu',
   '--allow-insecure-localhost',
@@ -65,7 +67,6 @@ const DEFAULT_ARGS = [
   '--enable-automation',
 
   '--disable-device-discovery-notifications',
-  '--disable-infobars',
 
   // https://github.com/cypress-io/cypress/issues/2376
   '--autoplay-policy=no-user-gesture-required',
@@ -86,7 +87,6 @@ const DEFAULT_ARGS = [
   // option enabled, it will time out some of our tests in circle
   // "--disable-background-networking"
   '--disable-web-resources',
-  '--safebrowsing-disable-auto-update',
   '--safebrowsing-disable-download-protection',
   '--disable-client-side-phishing-detection',
   '--disable-component-update',
@@ -294,7 +294,35 @@ const _navigateUsingCRI = async function (client, url) {
   await client.send('Page.navigate', { url })
 }
 
-const _setDownloadsDir = async function (client, dir) {
+const _handleDownloads = async function (client, dir, automation) {
+  await client.send('Page.enable')
+
+  client.on('Page.downloadWillBegin', (data) => {
+    const downloadItem = {
+      id: data.guid,
+      url: data.url,
+    }
+
+    const filename = data.suggestedFilename
+
+    if (filename) {
+      // @ts-ignore
+      downloadItem.filePath = path.join(dir, data.suggestedFilename)
+      // @ts-ignore
+      downloadItem.mime = mime.getType(data.suggestedFilename)
+    }
+
+    automation.push('create:download', downloadItem)
+  })
+
+  client.on('Page.downloadProgress', (data) => {
+    if (data.state !== 'completed') return
+
+    automation.push('complete:download', {
+      id: data.guid,
+    })
+  })
+
   await client.send('Page.setDownloadBehavior', {
     behavior: 'allow',
     downloadPath: dir,
@@ -324,7 +352,7 @@ export = {
 
   _navigateUsingCRI,
 
-  _setDownloadsDir,
+  _handleDownloads,
 
   _setAutomation,
 
@@ -494,7 +522,7 @@ export = {
 
     await this._maybeRecordVideo(criClient, options)
     await this._navigateUsingCRI(criClient, url)
-    await this._setDownloadsDir(criClient, options.downloadsFolder)
+    await this._handleDownloads(criClient, options.downloadsFolder, automation)
 
     // return the launched browser process
     // with additional method to close the remote connection

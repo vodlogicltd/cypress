@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events'
 import { RunnablesErrorModel } from '../../src/runnables/runnable-error'
-import { RootRunnable } from './../../src/runnables/runnables-store'
+import { RootRunnable } from '../../src/runnables/runnables-store'
 
 interface RenderProps {
   error?: RunnablesErrorModel
@@ -69,6 +69,7 @@ describe('runnables', () => {
     ] })
 
     // ensure the page is loaded before taking snapshot
+    cy.get('.focus-tests-text').should('be.visible')
     cy.contains('buzz').should('be.visible')
     cy.percySnapshot()
   })
