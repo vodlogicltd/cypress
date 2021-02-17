@@ -288,7 +288,6 @@ commands:
             - store_artifacts:
                 name: videos
                 path: /tmp/<<parameters.repo>>/cypress/videos
-      - store-npm-logs
 
   wait-on-circle-jobs:
     description: Polls certain Circle CI jobs until they finish
@@ -351,11 +350,6 @@ commands:
           command: |
             . ./scripts/load-nvm.sh
             yarn binary-zip --platform $PLATFORM
-      - store-npm-logs
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - cypress/cypress.zip
 
   upload-binary:
     steps:
@@ -366,11 +360,6 @@ commands:
               --file cypress.zip \
               --version $(node -p "require('./package.json').version")
       - run: cat binary-url.json
-      - store-npm-logs
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - cypress/binary-url.json
 
   build-npm-package:
     steps:
@@ -398,7 +387,6 @@ commands:
           command: ls -l
       # created file should have filename cypress-<version>.tgz
       - run: cp cli/build/cypress-v*.tgz cypress.tgz
-      - store-npm-logs
       - run: pwd
       - run: ls -l
       - persist_to_workspace:
@@ -415,7 +403,6 @@ commands:
             node scripts/binary.js upload-npm-package \
               --file cypress.tgz \
               --version $(node -p "require('./package.json').version")
-      - store-npm-logs
       - run: ls -l
       - run: cat npm-package-url.json
       - persist_to_workspace:
@@ -488,8 +475,6 @@ jobs:
           name: Top level packages
           command: yarn list --depth=0 || true
 
-      - store-npm-logs
-
       - save_cache:
           name: Save yarn cache
           key: v{{ .Environment.CACHE_VERSION }}-{{ arch }}-deps-root-{{ checksum "yarn.lock" }}
@@ -519,7 +504,6 @@ jobs:
       - run:
           name: cypress info (dev)
           command: node cli/bin/cypress info --dev
-      - store-npm-logs
 
   list-changed-packages:
     <<: *defaults
@@ -575,7 +559,6 @@ jobs:
       - run:
           name: Run tests
           command: yarn workspace @cypress/react test
-      - store-npm-logs
       - persist_to_workspace:
           root: ~/
           paths: cypress/npm/react
@@ -676,7 +659,6 @@ jobs:
           path: /tmp/cypress-example-kitchensink/cypress/screenshots
       - store_artifacts:
           path: /tmp/cypress-example-kitchensink/cypress/videos
-      - store-npm-logs
 
   "test-kitchensink-against-staging":
     <<: *defaults
@@ -700,7 +682,6 @@ jobs:
             CYPRESS_INTERNAL_ENV=staging \
             CYPRESS_video=false \
             yarn cypress:run --project /tmp/cypress-example-kitchensink --record
-      - store-npm-logs
 
   "test-against-staging":
     <<: *defaults
@@ -714,7 +695,6 @@ jobs:
             CYPRESS_RECORD_KEY=$TEST_TINY_RECORD_KEY \
             CYPRESS_INTERNAL_ENV=staging \
             yarn cypress:run --project /tmp/cypress-test-tiny --record
-      - store-npm-logs
 
 linux-workflow: &linux-workflow
   jobs:
