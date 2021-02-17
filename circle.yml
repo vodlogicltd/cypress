@@ -818,44 +818,6 @@ mac-workflow: &mac-workflow
         requires:
           - darwin-build
 
-    - test-kitchensink:
-        name: darwin-test-kitchensink
-        executor: mac
-        <<: *macBuildFilters
-        requires:
-          - darwin-build
-
-    - test-binary-against-kitchensink:
-        name: darwin-test-binary-against-kitchensink
-        executor: mac
-        <<: *macBuildFilters
-        requires:
-          - darwin-create-build-artifacts
-
-    - test-binary-against-staging:
-        context: test-runner:record-tests
-        name: darwin-test-binary-against-staging
-        executor: mac
-        filters:
-          branches:
-            only:
-              - develop
-              - fix-next-version
-        requires:
-          - darwin-create-build-artifacts
-
-    - test-binary-and-npm-against-other-projects:
-        context: test-runner:trigger-test-jobs
-        name: darwin-test-binary-and-npm-against-other-projects
-        executor: mac
-        filters:
-          branches:
-            only:
-              - develop
-              - fix-next-version
-        requires:
-          - darwin-create-build-artifacts
-
 workflows:
   linux:
     <<: *linux-workflow
