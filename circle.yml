@@ -187,18 +187,11 @@ commands:
 
 jobs:
   npm-react-all:
-    <<: *defaults
-    parallelism: 3
+    parallelism: 4
     steps: 
-      - run:
-          name: Sleep 5 and echo OK
-          command: date +"%d-%m-%y %H:%M:%S"; sleep 5; echo "OK"
-      - run:
-          name: Sleep 5 and echo OK
-          command: date +"%d-%m-%y %H:%M:%S"; sleep 5; echo "OK"
-      - run:
-          name: Sleep 5 and echo OK
-          command: date +"%d-%m-%y %H:%M:%S"; sleep 5; echo "OK"
+      - run: date +"%d-%m-%y %H:%M:%S" && sleep 5 && echo "OK"
+      - run: date +"%d-%m-%y %H:%M:%S" && sleep 5 && echo "OK"
+      - run: date +"%d-%m-%y %H:%M:%S" && sleep 5 && echo "OK"
 
   build:
     <<: *defaults
