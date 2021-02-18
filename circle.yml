@@ -187,6 +187,15 @@ commands:
 
 jobs:
   npm-react-all:
+    working_directory: ~/cypress
+    parameters:
+      executor:
+        type: executor
+        default: cy-doc
+    executor: <<parameters.executor>>
+    environment:
+      ## set specific timezone
+      TZ: "/usr/share/zoneinfo/America/New_York"
     parallelism: 4
     steps: 
       - run: date +"%d-%m-%y %H:%M:%S" && sleep 5 && echo "OK"
