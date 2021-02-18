@@ -186,7 +186,20 @@ commands:
       - run: cat binary-url.json
 
 jobs:
-  ## code checkout and yarn installs
+  npm-react-all:
+    <<: *defaults
+    parallelism: 3
+    steps: 
+      - run:
+          name: Sleep 5 and echo OK
+          command: sleep 5; echo "OK"
+      - run:
+          name: Sleep 5 and echo OK
+          command: sleep 5; echo "OK"
+      - run:
+          name: Sleep 5 and echo OK
+          command: sleep 5; echo "OK"
+
   build:
     <<: *defaults
     steps:
@@ -336,20 +349,8 @@ linux-workflow: &linux-workflow
     - npm-react:
         requires:
           - build
-    # Run tests for end-to-end react component tests examples
-    - npm-react-all:
-      parallelism: 3
-      steps: 
-        - run:
-            name: Sleep 5 and echo OK
-            command: sleep 5; echo "OK"
-        - run:
-            name: Sleep 5 and echo OK
-            command: sleep 5; echo "OK"
-        - run:
-            name: Sleep 5 and echo OK
-            command: sleep 5; echo "OK"
 
+    - npm-react-all
 
     - npm-react-e2e-example:
         name: npm-react-axe
