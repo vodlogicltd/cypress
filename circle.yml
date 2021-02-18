@@ -19,16 +19,6 @@ defaults: &defaults
     COLUMNS: 100
     LINES: 24
 
-# filters and requires for testing binary with Firefox
-testBinaryFirefox: &testBinaryFirefox
-  filters:
-    branches:
-      only:
-        - develop
-        - fix-next-version
-  requires:
-    - create-build-artifacts
-
 executors:
   # the Docker image with Cypress dependencies and Chrome browser
   cy-doc:
@@ -134,151 +124,6 @@ commands:
             git clone --depth 1 --no-single-branch https://github.com/cypress-io/<<parameters.repo>>.git /tmp/<<parameters.repo>>
             cd /tmp/<<parameters.repo>> && (git checkout $(node ./scripts/get-next-version) || true)
 
-  test-binary-against-repo:
-    description: |
-      Takes the built binary and NPM package, clones given example repo
-      and runs the new version of Cypress against it.
-    parameters:
-      repo:
-        description: "Name of the github repo to clone like: cypress-example-kitchensink"
-        type: string
-      browser:
-        description: Name of the browser to use, like "electron", "chrome", "firefox"
-        type: enum
-        enum: ["", "electron", "chrome", "firefox"]
-        default: ""
-      command:
-        description: Test command to run to start Cypress tests
-        type: string
-        default: "npm run e2e"
-      # if the repo to clone and test is a monorepo, you can
-      # run tests inside a specific subfolder
-      folder:
-        description: Subfolder to test in
-        type: string
-        default: ""
-      # you can test new features in the test runner against recipes or other repos
-      # by opening a pull request in those repos and running this test job
-      # against a pull request number in the example repo
-      pull_request_id:
-        description: Pull request number to check out before installing and testing
-        type: integer
-        default: 0
-      wait-on:
-        description: Whether to use wait-on to wait on a server to be booted
-        type: string
-        default: ""
-      server-start-command:
-        description: Server start command for repo
-        type: string
-        default: "npm start --if-present"
-    steps:
-      - attach_workspace:
-          at: ~/
-      - check-conditional-ci
-      # make sure the binary and NPM package files are present
-      - run: ls -l
-      - run: ls -l cypress.zip cypress.tgz
-      - clone-repo-and-checkout-release-branch:
-          repo: <<parameters.repo>>
-      - when:
-          condition: <<parameters.pull_request_id>>
-          steps:
-            - run:
-                name: Check out PR <<parameters.pull_request_id>>
-                working_directory: /tmp/<<parameters.repo>>
-                command: |
-                  git fetch origin pull/<<parameters.pull_request_id>>/head:pr-<<parameters.pull_request_id>>
-                  git checkout pr-<<parameters.pull_request_id>>
-                  git log -n 2
-      - run:
-          command: npm install
-          working_directory: /tmp/<<parameters.repo>>
-      - run:
-          name: Install Cypress
-          working_directory: /tmp/<<parameters.repo>>
-          # force installing the freshly built binary
-          command: CYPRESS_INSTALL_BINARY=~/cypress/cypress.zip npm i ~/cypress/cypress.tgz
-      - run:
-          name: Print Cypress version
-          working_directory: /tmp/<<parameters.repo>>
-          command: npx cypress version
-      - run:
-          name: Types check 🧩 (maybe)
-          working_directory: /tmp/<<parameters.repo>>
-          command: npm run types --if-present
-      - run:
-          name: Build 🏗 (maybe)
-          working_directory: /tmp/<<parameters.repo>>
-          command: npm run build --if-present
-      - run:
-          working_directory: /tmp/<<parameters.repo>>
-          command: <<parameters.server-start-command>>
-          background: true
-      - run:
-          condition: <<parameters.wait-on>>
-          name: "Waiting on server to boot: <<parameters.wait-on>>"
-          command: "npx wait-on <<parameters.wait-on>> --timeout 120000"
-      - when:
-          condition: <<parameters.folder>>
-          steps:
-            - when:
-                condition: <<parameters.browser>>
-                steps:
-                  - run:
-                      name: Run tests using browser "<<parameters.browser>>"
-                      working_directory: /tmp/<<parameters.repo>>/<<parameters.folder>>
-                      command: |
-                        <<parameters.command>> -- --browser <<parameters.browser>>
-            - unless:
-                condition: <<parameters.browser>>
-                steps:
-                  - run:
-                      name: Run tests using command
-                      working_directory: /tmp/<<parameters.repo>>/<<parameters.folder>>
-                      command: <<parameters.command>>
-
-            - store_artifacts:
-                name: screenshots
-                path: /tmp/<<parameters.repo>>/<<parameters.folder>>/cypress/screenshots
-            - store_artifacts:
-                name: videos
-                path: /tmp/<<parameters.repo>>/<<parameters.folder>>/cypress/videos
-      - unless:
-          condition: <<parameters.folder>>
-          steps:
-            - when:
-                condition: <<parameters.browser>>
-                steps:
-                  - run:
-                      name: Run tests using browser "<<parameters.browser>>"
-                      working_directory: /tmp/<<parameters.repo>>
-                      command: <<parameters.command>> -- --browser <<parameters.browser>>
-            - unless:
-                condition: <<parameters.browser>>
-                steps:
-                  - run:
-                      name: Run tests using command
-                      working_directory: /tmp/<<parameters.repo>>
-                      command: <<parameters.command>>
-            - store_artifacts:
-                name: screenshots
-                path: /tmp/<<parameters.repo>>/cypress/screenshots
-            - store_artifacts:
-                name: videos
-                path: /tmp/<<parameters.repo>>/cypress/videos
-
-  wait-on-circle-jobs:
-    description: Polls certain Circle CI jobs until they finish
-    parameters:
-      job-names:
-        description: comma separated list of circle ci job names to wait for
-        type: string
-    steps:
-      - run:
-          name: "Waiting on Circle CI jobs: <<parameters.job-names>>"
-          command: node ./scripts/wait-on-circle-jobs.js --job-names="<<parameters.job-names>>"
-
   check-conditional-ci:
     description: Halt CI if the package that this job corresponds to is unchanged
     steps:
@@ -373,22 +218,6 @@ commands:
           paths:
             - cypress/cypress.tgz
 
-  upload-npm-package:
-    steps:
-      - run: ls -l
-      - run:
-          name: upload NPM package
-          command: |
-            node scripts/binary.js upload-npm-package \
-              --file cypress.tgz \
-              --version $(node -p "require('./package.json').version")
-      - run: ls -l
-      - run: cat npm-package-url.json
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - cypress/npm-package-url.json
-
 jobs:
   ## code checkout and yarn installs
   build:
@@ -467,64 +296,6 @@ jobs:
             - cypress
             - .ssh
 
-  lint:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: ~/
-      - install-required-node
-      ## this will catch ".only"s in js/coffee as well
-      - run:
-          name: Linting 🧹
-          command: |
-            . ./scripts/load-nvm.sh
-            git clean -df
-            yarn lint
-      - run:
-          name: cypress info (dev)
-          command: node cli/bin/cypress info --dev
-
-  list-changed-packages:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: ~/
-      - run:
-          name: List changed packages
-          command: node scripts/changed-packages.js
-
-  # a special job that keeps polling Circle and when all
-  # individual jobs are finished, it closes the Percy build
-  percy-finalize:
-    <<: *defaults
-    executor: cy-doc
-    parameters:
-      required_env_var:
-        type: env_var_name
-    steps:
-      - attach_workspace:
-          at: ~/
-      - run:
-          # if this is an external pull request, the environment variables
-          # are NOT set for security reasons, thus no need to poll -
-          # and no need to finalize Percy, since there will be no visual tests
-          name: Check if <<parameters.required_env_var>> is set
-          command: |
-            if [[ -v <<parameters.required_env_var>> ]]; then
-              echo "Internal PR, good to go"
-            else
-              echo "This is an external PR, cannot access other services"
-              circleci-agent step halt
-            fi
-      - wait-on-circle-jobs:
-          job-names: >
-            desktop-gui-integration-tests-2x,
-            desktop-gui-component-tests,
-            runner-integration-tests-chrome,
-            runner-ct-integration-tests-chrome
-            reporter-integration-tests,
-      - run: npx percy finalize --all
-
   npm-react:
     <<: *defaults
     steps:
@@ -574,25 +345,6 @@ jobs:
           command: yarn test
           working_directory: npm/react/<<parameters.path>>
 
-  npm-eslint-plugin-dev:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: ~/
-      - check-conditional-ci
-      - run:
-          name: Run tests
-          command: yarn workspace @cypress/eslint-plugin-dev test
-
-  npm-release:
-    <<: *defaults
-    steps:
-      - attach_workspace:
-          at: ~/
-      - run:
-          name: Release packages
-          command: yarn npm-release
-
   create-build-artifacts:
     <<: *defaults
     shell: /bin/bash --login
@@ -610,86 +362,11 @@ jobs:
               circleci-agent step halt
             fi
       - upload-binary
-      - upload-npm-package
       - post-install-comment
-
-  test-kitchensink:
-    <<: *defaults
-    steps:
-      - clone-repo-and-checkout-release-branch:
-          repo: cypress-example-kitchensink
-      - install-required-node
-      - run:
-          name: Install prod dependencies
-          command: yarn --production
-          working_directory: /tmp/cypress-example-kitchensink
-      - run:
-          name: Example server
-          command: yarn start
-          working_directory: /tmp/cypress-example-kitchensink
-          background: true
-      - run:
-          name: Run Kitchensink example project
-          command: |
-            . ./scripts/load-nvm.sh
-            yarn cypress:run --project /tmp/cypress-example-kitchensink
-      - store_artifacts:
-          path: /tmp/cypress-example-kitchensink/cypress/screenshots
-      - store_artifacts:
-          path: /tmp/cypress-example-kitchensink/cypress/videos
-
-  "test-kitchensink-against-staging":
-    <<: *defaults
-    steps:
-      - clone-repo-and-checkout-release-branch:
-          repo: cypress-example-kitchensink
-      - run:
-          name: Install prod dependencies
-          command: yarn --production
-          working_directory: /tmp/cypress-example-kitchensink
-      - run:
-          name: Example server
-          command: yarn start
-          working_directory: /tmp/cypress-example-kitchensink
-          background: true
-      - run:
-          name: Run Kitchensink example project
-          command: |
-            CYPRESS_PROJECT_ID=$TEST_KITCHENSINK_PROJECT_ID \
-            CYPRESS_RECORD_KEY=$TEST_KITCHENSINK_RECORD_KEY \
-            CYPRESS_INTERNAL_ENV=staging \
-            CYPRESS_video=false \
-            yarn cypress:run --project /tmp/cypress-example-kitchensink --record
-
-  "test-against-staging":
-    <<: *defaults
-    steps:
-      - clone-repo-and-checkout-release-branch:
-          repo: cypress-test-tiny
-      - run:
-          name: Run test project
-          command: |
-            CYPRESS_PROJECT_ID=$TEST_TINY_PROJECT_ID \
-            CYPRESS_RECORD_KEY=$TEST_TINY_RECORD_KEY \
-            CYPRESS_INTERNAL_ENV=staging \
-            yarn cypress:run --project /tmp/cypress-test-tiny --record
 
 linux-workflow: &linux-workflow
   jobs:
     - build
-    - lint:
-        name: Linux lint
-        requires:
-          - build
-    - list-changed-packages:
-        requires:
-          - build
-    - percy-finalize:
-        context: test-runner:poll-circle-workflow
-        required_env_var: PERCY_TOKEN # skips job if not defined (external PR)
-        requires:
-          - build
-    # unit, integration and e2e tests
     - npm-react:
         requires:
           - build
@@ -761,14 +438,6 @@ linux-workflow: &linux-workflow
         path: examples/webpack-options
         requires:
           - npm-react
-
-    - npm-eslint-plugin-dev:
-        requires:
-          - build
-
-    - npm-release:
-        requires:
-          - build
 
 workflows:
   linux:
