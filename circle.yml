@@ -192,13 +192,13 @@ jobs:
     steps: 
       - run:
           name: Sleep 5 and echo OK
-          command: sleep 5; echo "OK"
+          command: date +"%d-%m-%y %H:%M:%S"; sleep 5; echo "OK"
       - run:
           name: Sleep 5 and echo OK
-          command: sleep 5; echo "OK"
+          command: date +"%d-%m-%y %H:%M:%S"; sleep 5; echo "OK"
       - run:
           name: Sleep 5 and echo OK
-          command: sleep 5; echo "OK"
+          command: date +"%d-%m-%y %H:%M:%S"; sleep 5; echo "OK"
 
   build:
     <<: *defaults
