@@ -185,39 +185,6 @@ commands:
               --version $(node -p "require('./package.json').version")
       - run: cat binary-url.json
 
-  build-npm-package:
-    steps:
-      - run:
-          name: bump NPM version
-          command: yarn get-next-version --npm
-      - run:
-          name: build NPM package
-          command: |
-            . ./scripts/load-nvm.sh
-            yarn build --scope cypress
-      - run:
-          command: ls -la types
-          working_directory: cli/build
-      - run:
-          name: list NPM package contents
-          command: yarn workspace cypress size
-      - run:
-          name: pack NPM package
-          working_directory: cli/build
-          command: yarn pack
-      - run:
-          name: list created NPM package
-          working_directory: cli/build
-          command: ls -l
-      # created file should have filename cypress-<version>.tgz
-      - run: cp cli/build/cypress-v*.tgz cypress.tgz
-      - run: pwd
-      - run: ls -l
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - cypress/cypress.tgz
-
 jobs:
   ## code checkout and yarn installs
   build:
@@ -353,7 +320,6 @@ jobs:
           at: ~/
       - check-conditional-ci
       - build-binary
-      - build-npm-package
       - run:
           name: Check current branch to persist artifacts
           command: |
